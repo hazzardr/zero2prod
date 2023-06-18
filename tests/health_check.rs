@@ -1,6 +1,56 @@
+use reqwest::Client as HttpClient;
 use std::net::TcpListener;
 
-use reqwest::Client as HttpClient;
+#[tokio::test]
+async fn member_can_subscribe_test() {
+    // Given
+    let address = spawn_app();
+    let client = HttpClient::new();
+    let body = "user=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    // When
+    let response = client
+        .post(&format!("{}/subscriptions", &address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await
+        .expect("failed to execute request in test");
+
+    // Then
+    assert_eq!(200, response.status().as_u16())
+}
+
+#[tokio::test]
+async fn missing_data_test() {
+    // Given
+    let address = spawn_app();
+    let client = HttpClient::new();
+    let test_cases = vec![
+        ("name=le%20guin", "missing the email"),
+        ("email=ursula_le_guin%40gmail.com", "missing the name"),
+        ("", "missing both name and email"),
+    ];
+
+    // When
+    for (invalid_body, error_message) in test_cases {
+        let response = client
+            .post(&format!("{}/subscriptions", &address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(invalid_body)
+            .send()
+            .await
+            .expect("failed to execute request in test");
+
+        // Then
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            "Expected status 400 with input payload of {}",
+            error_message
+        );
+    }
+}
 
 #[tokio::test]
 async fn health_check_test() {
