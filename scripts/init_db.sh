@@ -27,13 +27,16 @@ DB_HOST="${POSTGRES_HOST:=localhost}"
 DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 
 # Launch postgres using Docker
-docker run \
-  -e POSTGRES_USER=${DB_USER} \
-  -e POSTGRES_PASSWORD=${DB_PASSWORD} \
-  -e POSTGRES_DB=${DB_NAME} \
-  -p "${DB_PORT}":5432 \
-  -d postgres \
-  postgres -N 1000
+# Allow to skip Docker if a dockerized Postgres database is already running
+if [[ -z "${SKIP_DOCKER}" ]]; then
+  docker run \
+    -e POSTGRES_USER=${DB_USER} \
+    -e POSTGRES_PASSWORD=${DB_PASSWORD} \
+    -e POSTGRES_DB=${DB_NAME} \
+    -p "${DB_PORT}":5432 \
+    -d postgres \
+    postgres -N 1000
+fi
 
 # Keep pinging Postgres until it's ready to accept commands
 export PGPASSWORD="${DB_PASSWORD}"
@@ -46,3 +49,6 @@ done
 
 export DATABASE_URL
 sqlx database create
+sqlx migrate run
+
+>&2 echo "Postgres has been migrated, ready to go!"

@@ -16,10 +16,6 @@ fn index(form: web::Form<FormData>) -> String {
     format!("welcome! {}", form.user)
 }
 
-pub async fn health_check() -> HttpResponse {
-    HttpResponse::Ok().finish()
-}
-
 async fn subscribe(_form: Form<FormData>) -> HttpResponse {
     HttpResponse::Ok().finish()
 }
