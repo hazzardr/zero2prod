@@ -1,10 +1,17 @@
 use reqwest::Client as HttpClient;
 use std::net::TcpListener;
+use sqlx::{PgConnection, Connection};
+use zero2prod::configuration::get_configuration;
 
 #[tokio::test]
 async fn member_can_subscribe_test() {
     // Given
     let address = spawn_app();
+    let config = get_configuration().expect("Failed to read config");
+    let db_connect_string = config.database.connection_string();
+    let mut connection = PgConnection::connect(&db_connect_string)
+        .await
+        .expect("Failed to connect to postgres");
     let client = HttpClient::new();
     let body = "user=le%20guin&email=ursula_le_guin%40gmail.com";
 
@@ -18,7 +25,13 @@ async fn member_can_subscribe_test() {
         .expect("failed to execute request in test");
 
     // Then
-    assert_eq!(200, response.status().as_u16())
+    assert_eq!(200, response.status().as_u16());
+    let saved = sqlx::query!("select email, name from subscriptions",)
+        .fetch_one(&mut connection)
+        .await
+        .expect("failed to fetch saved subscription");
+
+
 }
 
 #[tokio::test]
@@ -75,7 +88,7 @@ fn spawn_app() -> String {
     let listener = TcpListener::bind("localhost:0").expect("test failed to find available port");
 
     let port = listener.local_addr().unwrap().port();
-    let server = zero2prod::run(listener).expect("test is failing, couldnt start server");
+    let server = zero2prod::startup::run(listener).expect("test is failing, couldnt start server");
     let _ = tokio::spawn(server);
 
     format!("http://localhost:{}", port)
